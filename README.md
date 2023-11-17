@@ -11,4 +11,3 @@
 
 - self_play.py
   - self_count : 셀프 플레이 게임 수
-  - self_temperature : 볼츠만 분포의 온도 파라미터
