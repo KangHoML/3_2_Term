@@ -55,11 +55,9 @@ def play(model, temperature, pv_eval_count):
 # self play
 def self_play(args, net):
     history = []
-    model = net.load_state_dict(args.model_path)
     net.eval()
-    
     for i in range(args.self_count):
-        h = play(model, args.temperature, args.pv_eval_count)
+        h = play(net, args.temperature, args.pv_eval_count)
         history.extend(h)
         print(f'\rSelfPlay {i+1}/{args.self_count}', end='')
     
@@ -70,7 +68,7 @@ def self_play(args, net):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Prepare and store the data to play self")
 
-    parser.add_argument('--model_path', type=str, default='./model/best.pth')
+    parser.add_argument('--model_path', type=str, default=None)
     parser.add_argument('--pv_eval_count', type=int, default=50)
     parser.add_argument('--temperature', type=float, default=1.0)
     parser.add_argument('--num_residual_block', type=int, default=16)
@@ -79,4 +77,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters)
+    if args.model_path is not None:
+        net = net.load_state_dict(args.model_path)
     self_play(args, net)
