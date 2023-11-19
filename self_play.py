@@ -53,12 +53,9 @@ def play(model, temperature, pv_eval_count):
     return history
 
 # self play
-def self_play(args):
+def self_play(args, net):
     history = []
-
-    net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters)
-    model = net
-    # model = net.load_state_dict(args.model_path)
+    model = net.load_state_dict(args.model_path)
     net.eval()
     
     for i in range(args.self_count):
@@ -81,4 +78,5 @@ if __name__ == '__main__':
     parser.add_argument('--self_count', type=int, default=500)
 
     args = parser.parse_args()
-    self_play(args)
+    net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters)
+    self_play(args, net)
