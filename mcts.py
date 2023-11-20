@@ -9,7 +9,8 @@ from dual_network import DualNetwork
 def predict(net, state):
     x = torch.tensor([state.pieces, state.enemy_pieces], dtype=torch.float32)
     x = x.view(2, 3, 3).permute(1, 2, 0).unsqueeze(0)
-
+    
+    net.eval()
     with torch.no_grad():
         policies, value = net(x)
         policies = policies.view(-1).numpy()
