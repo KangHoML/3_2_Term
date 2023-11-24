@@ -26,7 +26,7 @@ def write_data(history):
         pickle.dump(history, f)
 
 # game play
-def play(model, temperature, pv_eval_count):
+def play(model, device, temperature, pv_eval_count):
     history = []
     state = State()
 
@@ -34,14 +34,16 @@ def play(model, temperature, pv_eval_count):
         if state.is_done():
             break
 
-        scores = pv_mcts_scores(model, state, temperature, pv_eval_count)
+        scores = pv_mcts_scores(model, state, device, temperature, pv_eval_count)
 
         policies = [0] * 9 # output_size
         for action, policy in zip(state.legal_actions(), scores):
             policies[action] = policy
         history.append([[state.pieces, state.enemy_pieces], policies, None])
+        
+        chosen_index = torch.multinomial(scores, 1).item()
+        action = state.legal_actions()[chosen_index]
 
-        action = np.random.choice(state.legal_actions(), p=scores)
 
         state = state.next(action)
 
@@ -53,11 +55,11 @@ def play(model, temperature, pv_eval_count):
     return history
 
 # self play
-def self_play(args, net):
+def self_play(args, net, device):
     history = []
     net.eval()
     for i in range(args.self_count):
-        h = play(net, args.temperature, args.pv_eval_count)
+        h = play(net, device, args.temperature, args.pv_eval_count)
         history.extend(h)
         print(f'\rSelfPlay {i+1}/{args.self_count}', end='')
     
@@ -75,5 +77,7 @@ if __name__ == '__main__':
     parser.add_argument('--self_count', type=int, default=500)
 
     args = parser.parse_args()
-    net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters)
-    self_play(args, net)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters).to(device)
+    
+    self_play(args, net, device)

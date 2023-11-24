@@ -20,12 +20,12 @@ def train(args):
     # train and evaluate cycle
     for epoch in range(args.epochs):
         print(f'Train Cycle : [{epoch} / {args.epochs}]')
-        self_play(args, net)
+        self_play(args, net, device)
         train_network(args, net, device)
         
-        update_best_player = evaluate_network(args, net)
+        update_best_player = evaluate_network(args, net, device)
         if update_best_player:
-            evaluate_best_player()
+            evaluate_best_player(args, net, device)
 
         
 if __name__ == '__main__':

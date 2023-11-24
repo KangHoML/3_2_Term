@@ -44,15 +44,15 @@ def update_best_player():
     copy('./model/latest.pth', './model/best.pth')
     print('Change BestPlayer')
 
-def evaluate_network(args, net):
+def evaluate_network(args, net, device):
     # Initialize the state
     state = State()
 
     # select action in mcts algorithm with latest & best model
     net.load_state_dict(torch.load('./model/latest.pth'))
-    next_action_latest = pv_mcts_action(net, state, args.pv_eval_count, args.temperature)
+    next_action_latest = pv_mcts_action(net, state, device, args.pv_eval_count, args.temperature)
     net.load_state_dict(torch.load('./model/best.pth'))
-    next_action_best = pv_mcts_action(net, state, args.pv_eval_count, args.temperature)
+    next_action_best = pv_mcts_action(net, state, device, args.pv_eval_count, args.temperature)
     next_actions = (next_action_latest, next_action_best)
 
     # calculate the average point and change the model
@@ -63,13 +63,12 @@ def evaluate_network(args, net):
     else:
         return False
 
-
-def evaluate_best_player(args, net):
+def evaluate_best_player(args, net, device):
     net.load_state_dict(torch.load('./model/latest.pth'))
     state = State()
 
     # mcts action function
-    next_pv_mcts_action = pv_mcts_action(net, state, 0.0)
+    next_pv_mcts_action = pv_mcts_action(net, state, device, 0.0)
 
     # vs. random algorithm
     next_actions = (next_pv_mcts_action, random_action)
