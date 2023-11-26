@@ -34,8 +34,8 @@ def evaluate_algorithm(next_actions, eval_epochs):
             total_point += play(next_actions)
         else:
             total_point += 1 - play(list(reversed(next_actions)))
-
-        print(f'\rEvaluate {eval_epoch+1}/{eval_epochs}')
+        print(f'\rEvaluate {eval_epoch+1}/{eval_epochs}', end='')
+    print('')
 
     average_point = total_point / eval_epochs
     return average_point
@@ -57,6 +57,7 @@ def evaluate_network(args, net):
 
     # calculate the average point and change the model
     average_point = evaluate_algorithm(next_actions, args.eval_epochs)
+    print(f'AveragePoint: {average_point}')
     if average_point > 0.5:
         update_best_player()
         return True
@@ -69,7 +70,7 @@ def evaluate_best_player(args, net):
     state = State()
 
     # mcts action function
-    next_pv_mcts_action = pv_mcts_action(net, state, 0.0)
+    next_pv_mcts_action = pv_mcts_action(net, state, pv_eval_count=args.pv_eval_count, temperature=0.0)
 
     # vs. random algorithm
     next_actions = (next_pv_mcts_action, random_action)

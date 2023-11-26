@@ -26,7 +26,7 @@ def write_data(history):
         pickle.dump(history, f)
 
 # game play
-def play(model, temperature, pv_eval_count):
+def play(model, pv_eval_count, temperature):
     history = []
     state = State()
 
@@ -34,7 +34,7 @@ def play(model, temperature, pv_eval_count):
         if state.is_done():
             break
 
-        scores = pv_mcts_scores(model, state, temperature, pv_eval_count)
+        scores = pv_mcts_scores(model, state, pv_eval_count, temperature)
 
         policies = [0] * 9 # output_size
         for action, policy in zip(state.legal_actions(), scores):
@@ -57,7 +57,7 @@ def self_play(args, net):
     history = []
     net.eval()
     for i in range(args.self_count):
-        h = play(net, args.temperature, args.pv_eval_count)
+        h = play(net, args.pv_eval_count, args.temperature)
         history.extend(h)
         print(f'\rSelfPlay {i+1}/{args.self_count}', end='')
     

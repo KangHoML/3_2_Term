@@ -7,13 +7,14 @@ from game import State
 from dual_network import DualNetwork
 
 def predict(net, state):
-    x = torch.tensor([state.pieces, state.enemy_pieces], dtype=torch.float32)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x = torch.tensor([state.pieces, state.enemy_pieces], dtype=torch.float32).to(device)
     x = x.view(2, 3, 3).permute(1, 2, 0).unsqueeze(0)
     
     net.eval()
     with torch.no_grad():
         policies, value = net(x)
-        policies = policies.view(-1).numpy()
+        policies = policies.view(-1).to('cpu').numpy()
         value = value.item()
 
     policies = policies[state.legal_actions()]
@@ -71,7 +72,7 @@ class Node:
 
         return self.child_nodes[np.argmax(pucb_values)] # select max arc score in child node
 
-def pv_mcts_scores(net, state, temperature, pv_eval_count):
+def pv_mcts_scores(net, state, pv_eval_count, temperature):
     root_node = Node(state, net, 0)
 
     for _ in range(pv_eval_count):
@@ -88,9 +89,11 @@ def pv_mcts_scores(net, state, temperature, pv_eval_count):
     return scores
 
 def pv_mcts_action(net, state, pv_eval_count, temperature=0):
-    scores = pv_mcts_scores(net, state, temperature, pv_eval_count)
-    action = np.random.choice(state.legal_actions(), p=scores)
-    return action
+    def pv_mcts_action(state):
+        scores = pv_mcts_scores(net, state, pv_eval_count, temperature)
+        return np.random.choice(state.legal_actions(), p=scores)
+
+    return pv_mcts_action
 
 def boltzman(xs, temperature):
     xs = [x ** (1 / temperature) for x in xs]
