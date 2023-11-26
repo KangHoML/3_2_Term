@@ -1,11 +1,27 @@
 import os
+import argparse
 import torch
 
 from pathlib import Path
 from shutil import copy
 
 from game import State, random_action, alpha_beta_action, mcts_action
+from dual_network import DualNetwork
 from mcts import pv_mcts_action
+
+
+parser = argparse.ArgumentParser(description="Reinforcement Train")
+
+# model hyper parameter
+parser.add_argument('--pv_eval_count', type=int, default=50)
+parser.add_argument('--temperature', type=float, default=1.0)
+parser.add_argument('--num_residual_block', type=int, default=16)
+parser.add_argument('--num_filters', type=int, default=128)
+
+# evaluate hyper parameter
+parser.add_argument('--eval_epochs', type=int, default=10)
+parser.add_argument('--epochs', type=int, default=10)
+
 
 def first_player_point(ended_state):
     # 1: win, 0: lose, 0.5: draw
@@ -66,7 +82,7 @@ def evaluate_network(args, net):
 
 
 def evaluate_best_player(args, net):
-    net.load_state_dict(torch.load('./model/latest.pth'))
+    net.load_state_dict(torch.load('./model/best.pth'))
     state = State()
 
     # mcts action function
@@ -86,3 +102,11 @@ def evaluate_best_player(args, net):
     next_actions = (next_pv_mcts_action, mcts_action)
     average_point = evaluate_algorithm(next_actions, args.eval_epochs)
     print(f'VS_MCTS: {average_point}')
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters).to(device)
+
+    # load the best.pth and calculate the win rate
+    evaluate_best_player(args, net)
