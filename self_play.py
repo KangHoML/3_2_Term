@@ -44,7 +44,6 @@ def play(model, device, temperature, pv_eval_count):
         chosen_index = torch.multinomial(scores, 1).item()
         action = state.legal_actions()[chosen_index]
 
-
         state = state.next(action)
 
     value = first_player_value(state)
