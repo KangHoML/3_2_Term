@@ -1,8 +1,6 @@
-import os
 import argparse
 import torch
 
-from pathlib import Path
 from shutil import copy
 
 from game import State, random_action, alpha_beta_action, mcts_action
@@ -66,9 +64,9 @@ def evaluate_network(args, net):
 
     # select action in mcts algorithm with latest & best model
     net.load_state_dict(torch.load('./model/latest.pth'))
-    next_action_latest = pv_mcts_action(net, state, args.pv_eval_count, args.temperature)
+    next_action_latest = pv_mcts_action(net, args.pv_eval_count, args.temperature)
     net.load_state_dict(torch.load('./model/best.pth'))
-    next_action_best = pv_mcts_action(net, state, args.pv_eval_count, args.temperature)
+    next_action_best = pv_mcts_action(net, args.pv_eval_count, args.temperature)
     next_actions = (next_action_latest, next_action_best)
 
     # calculate the average point and change the model
@@ -86,7 +84,7 @@ def evaluate_best_player(args, net):
     state = State()
 
     # mcts action function
-    next_pv_mcts_action = pv_mcts_action(net, state, pv_eval_count=args.pv_eval_count, temperature=0.0)
+    next_pv_mcts_action = pv_mcts_action(net, pv_eval_count=args.pv_eval_count, temperature=0.0)
 
     # vs. random algorithm
     next_actions = (next_pv_mcts_action, random_action)

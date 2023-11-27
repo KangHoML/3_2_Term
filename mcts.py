@@ -2,7 +2,6 @@ import torch
 import numpy as np
 
 from math import sqrt
-from pathlib import Path
 from game import State
 from dual_network import DualNetwork
 
@@ -88,7 +87,7 @@ def pv_mcts_scores(net, state, pv_eval_count, temperature):
     
     return scores
 
-def pv_mcts_action(net, state, pv_eval_count, temperature=0):
+def pv_mcts_action(net, pv_eval_count, temperature=0):
     def pv_mcts_action(state):
         scores = pv_mcts_scores(net, state, pv_eval_count, temperature)
         return np.random.choice(state.legal_actions(), p=scores)
@@ -107,7 +106,8 @@ if __name__ == '__main__':
     while True:
         if state.is_done():
             break
-        action = pv_mcts_action(net, state, pv_eval_count=50, temperature=1.0)
+        next_action = pv_mcts_action(net, pv_eval_count=50, temperature=1.0)
+        action = next_action(state)
         state = state.next(action)
 
         print(state)
