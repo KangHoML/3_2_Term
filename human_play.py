@@ -10,7 +10,7 @@ from game import State
 from dual_network import DualNetwork
 from mcts import pv_mcts_scores, pv_mcts_action
 from self_play import first_player_value, write_data
-from array_cam import OX_Model_CNN
+from cnn_model import OX_Model_CNN
 
 class GameUI(tk.Frame):
     def __init__(self, net, size, pv_eval_count, temperture, game_count = None, master=None):
@@ -70,7 +70,7 @@ class GameUI(tk.Frame):
             cv2.line(self.img, (0, self.grid_y_size * i), (640, self.grid_y_size * i), (255,255,255), 2)
         cv2.imshow("Result", self.img)
     
-    def update_image(self):
+    def update_idx(self):
         for i in range(3):
             for j in range(3):
                 start_x, start_y = self.grid_x_size*j, self.grid_y_size*i
@@ -86,7 +86,7 @@ class GameUI(tk.Frame):
                 saved_img = saved_img.unsqueeze(0)
 
                 with torch.no_grad():
-                    output = model(saved_img)
+                    output = self.image_model(saved_img)
                     _, predicted = torch.max(output, 1)
                     predicted_label = predicted.item()
                 
@@ -108,7 +108,7 @@ class GameUI(tk.Frame):
     
     def turn_of_human(self):
         self.read_video()
-        in_index = self.get_input_index()
+        in_index = self.update_inx()
         action = in_index
         if not (action in self.state.legal_actions()):
             return
@@ -186,14 +186,6 @@ class GameUI(tk.Frame):
                 self.draw_piece(i, self.state.is_first_player())
             if self.state.enemy_pieces[i] == 1:
                 self.draw_piece(i, not self.state.is_first_player())
-
-    def get_input_index(self):
-        in_index = int(input("Board(1~9): ")) - 1
-        if 0 <= in_index < 9 :
-            return in_index
-        else:
-            print("wrong index")
-            return None   
 
         
 parser = argparse.ArgumentParser('Game UI')
