@@ -1,11 +1,16 @@
+import os
+import cv2
 import torch
 import argparse
 import tkinter as tk
+import torchvision.transforms as transforms
 
+from PIL import Image
 from game import State
 from dual_network import DualNetwork
 from mcts import pv_mcts_scores, pv_mcts_action
 from self_play import first_player_value, write_data
+from array_cam import OX_Model_CNN
 
 class GameUI(tk.Frame):
     def __init__(self, net, size, pv_eval_count, temperture, game_count = None, master=None):
@@ -24,34 +29,95 @@ class GameUI(tk.Frame):
         self.pv_eval_count = pv_eval_count
         self.temperature  = temperture
         self.next_action = pv_mcts_action(self.net, pv_eval_count=self.pv_eval_count, temperature = 0.0)
-        
+
+        # set video variable
+        self.image_model = OX_Model_CNN()
+        self.image_model.load_state_dict(torch.load('./model/OX_class_model.pth'))
+        self.image_model.eval()
+
+        self.cap = cv2.VideoCapture(0)
+        self.cap.set(3, 640)
+        self.cap.set(4, 480)
+        self.grid_x_size = 640//3
+        self.grid_y_size = 480//3
+
+        self.transform = transforms.Compose([
+            transforms.Resize((150, 150)),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5])
+        ])
+
+        success, self.img = self.cap.read()
+        self.predict_result = [[0 for _ in range(3)] for _ in range(6)]
+        self.initalize_video()
+
         self.c = tk.Canvas(self, width=self.size, height=self.size, highlightthickness=0)
-        self.c.bind('<Button-1>', lambda event : self.turn_of_human(event))
-        self.c.pack()
+    
+        self.button = tk.Button(self, text="Submit", command=self.turn_of_human)
+        self.button.pack()
 
         self.history = []
         self.current_history = []
         self.state = State()
+
+        self.c.pack()
         self.on_draw()
 
-    def turn_of_human(self, event):
-        if self.state.is_done():
-            self.reset_game()
-            return
+    def read_video(self):
+        for i in range(1,3):
+            cv2.line(self.img, (self.grid_x_size * i, 0), (self.grid_x_size *i, 480), (255,255,255), 2)
+            cv2.line(self.img, (0, self.grid_y_size * i), (640, self.grid_y_size * i), (255,255,255), 2)
+        cv2.imshow("Result", self.img)
+    
+    def update_image(self):
+        for i in range(3):
+            for j in range(3):
+                start_x, start_y = self.grid_x_size*j, self.grid_y_size*i
+                end_x, end_y = start_x + self.grid_x_size, start_y + self.grid_y_size
+                
+                grid_img = self.img[start_y:end_y, start_x:end_x]
+                
+                saved_img_path = os.path.join('./predict', f'target_img_{i}_{j}.png')
+                cv2.imwrite(saved_img_path, grid_img)
+            
+                saved_img = Image.open(saved_img_path).convert('L')
+                saved_img = self.transform(saved_img)
+                saved_img = saved_img.unsqueeze(0)
+
+                with torch.no_grad():
+                    output = model(saved_img)
+                    _, predicted = torch.max(output, 1)
+                    predicted_label = predicted.item()
+                
+                self.predict_result[i][j] = predicted_label
         
-        x = int(event.x / (self.size/3))
-        y = int(event.y / (self.size/3))
+        idx = 0
+        for m in range(3):
+            for n in range(3):
+                idx+=1
+                if self.predict_result[m][n] == 1:
+                    if self.predict_result[m][n] != self.predict_result[m+3][n]:
+                        changed_idx = (idx-1)
         
-        if x < 0 or 2 < x or y < 0 or 2 < y:  
-            return
-        
-        action = x + y * 3
+        for k in range(3):
+            for l in range(3):
+                self.predict_result[k+3][l] = self.predict_result[k][l]
+
+        return changed_idx        
+    
+    def turn_of_human(self):
+        self.read_video()
+        in_index = self.get_input_index()
+        action = in_index
         if not (action in self.state.legal_actions()):
             return
-        
-        self.state = self.state.next(action)
-        self.on_draw()
-        self.master.after(1, self.turn_of_ai)
+        try:
+            self.state = self.state.next(action)
+            self.on_draw()
+            self.master.after(1, self.turn_of_ai)
+        except Exception as e:
+            print(f"Error in turn_of_human : {e}")
 
     def turn_of_ai(self):
         if self.state.is_done():
@@ -83,6 +149,8 @@ class GameUI(tk.Frame):
         self.current_history = []
         self.state = State()
         self.on_draw()
+        self.predict_result = [[0 for _ in range(3)] for _ in range(6)]
+        self.read_video()
 
         # check game_count & write history
         if self.game_count is not None:
@@ -119,6 +187,15 @@ class GameUI(tk.Frame):
             if self.state.enemy_pieces[i] == 1:
                 self.draw_piece(i, not self.state.is_first_player())
 
+    def get_input_index(self):
+        in_index = int(input("Board(1~9): ")) - 1
+        if 0 <= in_index < 9 :
+            return in_index
+        else:
+            print("wrong index")
+            return None   
+
+        
 parser = argparse.ArgumentParser('Game UI')
 parser.add_argument('--game_count', type=int, default=None)
 parser.add_argument('--size', type=int, default=240)
