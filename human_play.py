@@ -71,6 +71,7 @@ class GameUI(tk.Frame):
         cv2.imshow("Result", self.img)
     
     def update_idx(self):
+        changed_idx = 0
         for i in range(3):
             for j in range(3):
                 start_x, start_y = self.grid_x_size*j, self.grid_y_size*i
@@ -108,7 +109,7 @@ class GameUI(tk.Frame):
     
     def turn_of_human(self):
         self.read_video()
-        in_index = self.update_inx()
+        in_index = self.update_idx()
         action = in_index
         if not (action in self.state.legal_actions()):
             return
@@ -186,6 +187,10 @@ class GameUI(tk.Frame):
                 self.draw_piece(i, self.state.is_first_player())
             if self.state.enemy_pieces[i] == 1:
                 self.draw_piece(i, not self.state.is_first_player())
+    
+    def __del__(self):
+        if self.cap.isOpened():
+            self.cap.release()
 
         
 parser = argparse.ArgumentParser('Game UI')
