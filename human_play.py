@@ -23,7 +23,7 @@ class GameUI(tk.Frame):
         self.current_count = 0
 
         self.net = net
-        self.net.load_state_dict(torch.load('./model/best.pth'))
+        self.net.load_state_dict(torch.load('./model/best.pth')) 
         net.eval()
 
         self.pv_eval_count = pv_eval_count
@@ -35,12 +35,14 @@ class GameUI(tk.Frame):
         self.image_model.load_state_dict(torch.load('./model/OX_class_model.pth'))
         self.image_model.eval()
 
+        # camera_setting
         self.cap = cv2.VideoCapture(0)
         self.cap.set(3, 640)
         self.cap.set(4, 480)
         self.grid_x_size = 640//3
         self.grid_y_size = 480//3
 
+        #camera transforms
         self.transform = transforms.Compose([
             transforms.Resize((150, 150)),
             transforms.Grayscale(num_output_channels=1),
@@ -50,10 +52,12 @@ class GameUI(tk.Frame):
 
         success, self.img = self.cap.read()
         self.predict_result = [[0 for _ in range(3)] for _ in range(6)]
-        self.initalize_video()
 
         self.c = tk.Canvas(self, width=self.size, height=self.size, highlightthickness=0)
     
+        self.button = tk.Button(self, text="Camera", command=self.camera_check)
+        self.button.pack()
+        
         self.button = tk.Button(self, text="Submit", command=self.turn_of_human)
         self.button.pack()
 
@@ -63,13 +67,28 @@ class GameUI(tk.Frame):
 
         self.c.pack()
         self.on_draw()
-
+        
+    def camera_check(self):
+        while True:
+            success, self.img = self.cap.read()
+            for i in range(1,3):
+                cv2.line(self.img, (self.grid_x_size * i, 0), (self.grid_x_size *i, 480), (255,255,255), 2)
+                cv2.line(self.img, (0, self.grid_y_size * i), (640, self.grid_y_size * i), (255,255,255), 2)
+            cv2.imshow("Result", self.img)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            
+        cv2.destroyWindow("Result")
+        # self.cap.release()
+        return
+        
     def read_video(self):
         for i in range(1,3):
             cv2.line(self.img, (self.grid_x_size * i, 0), (self.grid_x_size *i, 480), (255,255,255), 2)
             cv2.line(self.img, (0, self.grid_y_size * i), (640, self.grid_y_size * i), (255,255,255), 2)
         cv2.imshow("Result", self.img)
-    
+        
     def update_idx(self):
         changed_idx = 0
         for i in range(3):
@@ -108,7 +127,8 @@ class GameUI(tk.Frame):
         return changed_idx        
     
     def turn_of_human(self):
-        self.read_video()
+        #success, self.img = self.cap.read()
+        #self.read_video()
         in_index = self.update_idx()
         action = in_index
         if not (action in self.state.legal_actions()):
@@ -137,6 +157,9 @@ class GameUI(tk.Frame):
         self.state = self.state.next(action)
         self.on_draw()
 
+        if self.state.is_done():
+            self.reset_game()
+
     def reset_game(self):
         # update history
         value = first_player_value(self.state)
@@ -144,14 +167,14 @@ class GameUI(tk.Frame):
             self.current_history[i][2] = value
             value = -value
         self.history.extend(self.current_history)
-        print(self.history)
+        #print(self.history)
 
         # initialize state & current history
         self.current_history = []
         self.state = State()
         self.on_draw()
         self.predict_result = [[0 for _ in range(3)] for _ in range(6)]
-        self.read_video()
+        #self.read_video()
 
         # check game_count & write history
         if self.game_count is not None:
@@ -192,7 +215,6 @@ class GameUI(tk.Frame):
         if self.cap.isOpened():
             self.cap.release()
 
-        
 parser = argparse.ArgumentParser('Game UI')
 parser.add_argument('--game_count', type=int, default=None)
 parser.add_argument('--size', type=int, default=240)
@@ -203,6 +225,9 @@ parser.add_argument('--temperature', type=float, default=1.0)
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    cap = cv2.VideoCapture(0)
+    cap.release()
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     net = DualNetwork(num_residual_block=args.num_residual_block, num_filters=args.num_filters).to(device)
     
@@ -210,5 +235,6 @@ if __name__ == '__main__':
         f = GameUI(net, args.size, args.pv_eval_count, args.temperature, game_count=args.game_count)
     else:
         f = GameUI(net, args.size, args.pv_eval_count, args.temperature)
+    
     f.pack()
     f.mainloop()
